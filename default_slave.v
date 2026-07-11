@@ -1,7 +1,7 @@
 
-module slave_2 #(   
-                    parameter BaseAddr = 32'h0000_0800 ,
-                    parameter Depth = 1024 ,
+module slave_0 #(   
+                    parameter BaseAddr = 32'h0000_1000,
+                    parameter Depth = 1024,
                     parameter DataWidth = 32,
                     parameter AddressWidth = 32,
                     parameter Size = 8,
@@ -227,6 +227,7 @@ end
 assign HResp = HResp_reg;
 assign HReadyOut = HReadyOut_reg;
 assign HRdata = HRdata_reg;
+
 
 
 endmodule

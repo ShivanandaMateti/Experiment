@@ -37,19 +37,11 @@ localparam BYTE_256      = 3'b101;
 localparam BYTE_512      = 3'b110;
 localparam BYTE_1024     = 3'b111;
 
-// Local parameters for HBurst
-localparam SINGLE          = 3'b000;
-localparam INCR            = 3'b001;
-localparam WRAP4           = 3'b010;
-localparam INCR4           = 3'b011;
-localparam WRAP8           = 3'b100;
-localparam INCR8           = 3'b101;
-localparam WRAP16          = 3'b110;
-localparam INCR16          = 3'b111;
+
 
 // local parameters for HTrans
 localparam IDLE         = 2'b00;
-localparam BUSY         = 2'b01;
+//      localparam BUSY         = 2'b01;
 localparam NONSEQ       = 2'b10;
 localparam SEQ          = 2'b11;
 
@@ -89,16 +81,28 @@ reg [DataWidth-1 : 0] HRdata_reg;
 
 // Latching address and control signals
 always@(posedge HClk,negedge HResetn)begin
-
-      HSelL            <= HSel;
-      HAddrL           <= HAddr;
-      HSizeL           <= HSize;
-      HBurstL          <= HBurst;
-      HTransL          <= HTrans;
-      HProtL           <= HProt;
-      HReadyL          <= HReady;
-      HMastlockL       <= HMastlock;
-      HWriteL          <= HWrite;     
+      if(!HResetn)begin
+            HSelL      <= 1'b0;
+            HAddrL     <= 32'd0;
+            HSizeL     <= BYTE;
+            HBurstL    <= 3'b000;
+            HTransL    <= IDLE;
+            HProtL     <= 4'b1100;
+            HReadyL    <= 1'b1;
+            HMastlockL <= 1'b0;
+            HWriteL    <= 1'b1;
+      end
+      else if(HReady)begin
+            HSelL            <= HSel;
+            HAddrL           <= HAddr;
+            HSizeL           <= HSize;
+            HBurstL          <= HBurst;
+            HTransL          <= HTrans;
+            HProtL           <= HProt;
+            HReadyL          <= HReady;
+            HMastlockL       <= HMastlock;
+            HWriteL          <= HWrite;     
+      end
       
 end
 
@@ -153,22 +157,26 @@ end
 
 // using the latched inputs 
 
-always@(posedge HClk)begin
+always@(posedge HClk,negedge HResetn)begin
       if(HResetn && (state==RESP_IDLE))begin
                               case(HSizeL)
                               BYTE       :begin
-                                        if(HWriteL)
-                                             mem[HAddrL] <= HWdata[7:0] ;
-                                        else
-                                             HRdata_reg  <= mem[HAddrL]; 
+                                          case(HAddrL[1:0])
+                                          2'b00          :if(HWriteL) mem[HAddrL] <= HWdata[7:0] ; else HRdata_reg[7:0]  <= mem[HAddrL];
+                                          2'b01          :if(HWriteL) mem[HAddrL] <= HWdata[15:8] ; else HRdata_reg[15:8]  <= mem[HAddrL];
+                                          2'b10          :if(HWriteL) mem[HAddrL] <= HWdata[23:16] ; else HRdata_reg[23:16]  <= mem[HAddrL];
+                                          2'b11          :if(HWriteL) mem[HAddrL] <= HWdata[31:24] ; else HRdata_reg[31:24]  <= mem[HAddrL];
+                                          default        :if(HWriteL) mem[HAddrL] <= HWdata[7:0] ; else HRdata_reg[7:0]  <= mem[HAddrL];
+                                          endcase
                               end
                               HALFWORD   :begin
-                                                if(HWriteL)
-                                                      {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0];
-                                                else
-                                                      HRdata_reg[15:0] <= {mem[HAddrL+1],mem[HAddrL]};
+                                          case(HAddrL[1])
+                                          1'b0          : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0]; else HRdata_reg[15:0] <= {mem[HAddrL+1],mem[HAddrL]};
+                                          1'b1          : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[31:16]; else HRdata_reg[31:16] <= {mem[HAddrL+1],mem[HAddrL]};
+                                          default       : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0]; else HRdata_reg[15:0] <= {mem[HAddrL+1],mem[HAddrL]};
+                                          endcase    
                               end
-                              WORD       :begin
+                              default       :begin
                                                 if(HWriteL)
                                                       {mem[HAddrL+3],mem[HAddrL+2],mem[HAddrL+1],mem[HAddrL]} <= HWdata;     
                                                 else
@@ -213,9 +221,13 @@ end
 
 
 
+
+
+
 assign HResp = HResp_reg;
 assign HReadyOut = HReadyOut_reg;
 assign HRdata = HRdata_reg;
+
 
 
 endmodule
