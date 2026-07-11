@@ -310,7 +310,7 @@ initial begin
 
     #100;
 
-    // Test-10 HSel deasserted 
+    // Test-7 HSel deasserted 
     $display("\nTest-7 HSel deasserted ");
     @(negedge HClk);
     HSel = 0;
@@ -332,7 +332,7 @@ initial begin
     HSel = 1;
     #100;
 
-    // Test-7 Address boundary case write
+    // Test-8 Address boundary case write
     $display("\nTest-8 Address boundary case write a word");
     @(negedge HClk);
     HAddr = 32'd1020;
@@ -345,7 +345,7 @@ initial begin
     #100;
     checkWrite(S_DUT.mem[1020]);checkWrite(S_DUT.mem[1021]);checkWrite(S_DUT.mem[1022]);checkWrite(S_DUT.mem[1023]);
 
-    // Test-8 Address boundary case read
+    // Test-9 Address boundary case read
     $display("\nTest-9 Address boundary case read a word");
     @(negedge HClk);
     HWrite = 0;
@@ -354,7 +354,7 @@ initial begin
 
     #100;
 
-    // Test-9 Misaligned Address for a Halfword
+    // Test-10 Misaligned Address for a Halfword
     $display("\nTest-10 Misaligned Address for a Halfword");
     @(negedge HClk);
     HAddr = 32'd5;
@@ -418,18 +418,73 @@ initial begin
             HReady = 0;
             repeat(3) @(posedge HClk);
             HReady = 1;
+            #5;
+            if((S_DUT.HAddrL==32'd1000) && (S_DUT.HTransL==NONSEQ))begin
+                $display("PASS ! Address and control signals are unchanged during wait states");
+                $display("HAddL = %0h , HTrans = %0h ",S_DUT.HAddrL,S_DUT.HTransL);
+                pass_count = pass_count + 1;
+            end
+            else begin
+                $display("FAIL ! ");
+                fail_count = fail_count + 1;
+            end
         end
     join
 
-    if((S_DUT.HAddrL==32'd1000) && (S_DUT.HTransL==NONSEQ))begin
-        $display("PASS ! Address and control signals are unchanged during wait states");
-        $display("HAddL = %0h , HTrans = %0h ",S_DUT.HAddrL,S_DUT.HTransL);
-        pass_count = pass_count + 1;
-    end
-    else begin
-        $display("FAIL ! ");
-        fail_count = fail_count + 1;
-    end
+
+    #100;
+
+    // Test-12 Back to Back tight transfers write
+    $display("\nTest-12 Back to Back tight write transfers");
+    clear_mem();
+    @(negedge HClk);
+    HAddr = 32'd40;
+    HSize = WORD;
+    HWrite = 1;
+    HTrans = NONSEQ;
+    @(negedge HClk);
+    HWdata = 32'h00000000;
+    push_ref(8'd0);push_ref(8'd0);push_ref(8'd0);push_ref(8'd0);
+    HAddr = 32'd44;
+    HTrans = SEQ;
+    @(negedge HClk);
+    HWdata = 32'h11111111;
+    push_ref(8'h11);push_ref(8'h11);push_ref(8'h11);push_ref(8'h11);
+    HAddr = 32'd48;
+    @(negedge HClk);
+    HWdata = 32'h22222222;
+    push_ref(8'h22);push_ref(8'h22);push_ref(8'h22);push_ref(8'h22);
+    HAddr = 32'd52;
+    @(negedge HClk);
+    HWdata = 32'h33333333;
+    push_ref(8'h33);push_ref(8'h33);push_ref(8'h33);push_ref(8'h33);
+    #100;
+    checkWrite(S_DUT.mem[40]);checkWrite(S_DUT.mem[41]);checkWrite(S_DUT.mem[42]);checkWrite(S_DUT.mem[43]);checkWrite(S_DUT.mem[44]);checkWrite(S_DUT.mem[45]);checkWrite(S_DUT.mem[46]);checkWrite(S_DUT.mem[47]);checkWrite(S_DUT.mem[48]);checkWrite(S_DUT.mem[49]);checkWrite(S_DUT.mem[50]);checkWrite(S_DUT.mem[51]);checkWrite(S_DUT.mem[52]);checkWrite(S_DUT.mem[53]);checkWrite(S_DUT.mem[54]);checkWrite(S_DUT.mem[55]);
+
+    // Test-13 Back to Back tight transfers read
+    $display("\nTest-12 Back to Back tight read transfers");
+     
+    @(negedge HClk);
+    HAddr = 32'd40;
+    HTrans = NONSEQ;
+    HWrite = 0;
+    #20;
+    checkRead(HRdata, 32'h0 );
+    @(negedge HClk);
+    HTrans = SEQ;
+    HAddr = 32'd44;
+    #20;
+    checkRead(HRdata, 32'h11111111);
+    @(negedge HClk);
+    HAddr = 32'd48;
+    #20;
+    checkRead(HRdata, 32'h22222222);
+    @(negedge HClk);
+    HAddr = 32'd52;
+    #20;
+    checkRead(HRdata, 32'h33333333);
+
+
 
 
     // -------------------------> RESULTS <-------------------------------

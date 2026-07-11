@@ -90,7 +90,7 @@ always@(posedge HClk,negedge HResetn)begin
             HProtL     <= 4'b1100;
             HReadyL    <= 1'b1;
             HMastlockL <= 1'b0;
-            HWriteL    <= 1'b1;
+            HWriteL    <= 1'b0;
       end
       else if(HReady)begin
             HSelL            <= HSel;
