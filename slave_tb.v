@@ -19,25 +19,17 @@ parameter Depth = 1024;
 localparam BYTE          = 3'b000;
 localparam HALFWORD      = 3'b001;
 localparam WORD          = 3'b010;
+/*
 localparam DOUBLEWORD    = 3'b011;
 localparam QUADWORD      = 3'b100;
 localparam BYTE_256      = 3'b101;
 localparam BYTE_512      = 3'b110;
 localparam BYTE_1024     = 3'b111;
+*/
 
-// Local parameters for HBurst
-localparam SINGLE           = 3'b000;
-localparam INCR             = 3'b001;
-localparam WRAP4           = 3'b010;
-localparam INCR4           = 3'b011;
-localparam WRAP8           = 3'b100;
-localparam INCR8           = 3'b101;
-localparam WRAP16          = 3'b110;
-localparam INCR16          = 3'b111;
+
 
 // local parameters for HTrans
-localparam IDLE         = 2'b00;
-localparam BUSY         = 2'b01;
 localparam NONSEQ       = 2'b10;
 localparam SEQ          = 2'b11;
 
@@ -167,7 +159,7 @@ initial begin
     
     // initializing the dut
     HSize = BYTE;
-    HBurst = SINGLE;
+    HBurst = 3'b000;
     HTrans = NONSEQ;
     HProt = 4'b1100;
     HMastlock = 1'b0;
@@ -186,11 +178,11 @@ initial begin
     #15;
     $display("HResp : %0b , HReadyOut : %0b , HRdata : %0h ",HResp,HReadyOut,HRdata);
     if((HReadyOut==1) & (HResp==0))begin
-        $display("T-1 PASS !" );
+        $display("PASS !" );
         pass_count = pass_count + 1;
     end
     else begin
-        $display("T-1 FAIL!");
+        $display("FAIL!");
         fail_count = fail_count + 1;
     end
 
@@ -200,13 +192,14 @@ initial begin
     @(negedge HClk);
     HResetn = 1; 
     #20;
+    @(negedge HClk);
     HAddr = 32'd0;
     HWdata = 32'h78;
     push_ref(8'h78);
     HWrite = 1;
+    #40;  // give some time to write
     checkWrite(S_DUT.mem[0]);
     #15;
-    $display("HResp : %0b , HReady : %0b ",HResp,HReadyOut);
 
 
     #200;
@@ -214,27 +207,54 @@ initial begin
     $display("\nTest-3 Single read a byte");
     @(negedge HClk);
     HWrite = 0;
+    #40;   // give some time to read
     checkRead(HRdata,32'h78);
     #15;
-    $display("HResp : %0b , HReady : %0b , HRdata : %0h ",HResp,HReadyOut,HRdata);
 
     
     // test-4 Invalid address
     $display("\nTest-4 Invalid Address");
     HSize = WORD;
     HWrite = 1;
-    HWdata = 32'h22334455;
     @(negedge HClk);
-    HAddr = 32'd2124;
+    HAddr = 32'd111111111;
+    HWdata = 32'h12341234;
+
+    @(posedge HClk);   // for address to be latched
+    @(posedge HClk);   // for error cycle 1
+    #1;
     $display("HResp : %0b , HReady : %0b  ",HResp,HReadyOut);
     if((HResp==1) && (HReadyOut == 0))begin
-        $display("Pass ! Error State for invalid address ");
+        $display("Pass ! Error Cycle 1 for invalid address ");
         pass_count = pass_count + 1;
     end
     else begin
         $display("TEST FAIlED !");
         fail_count = fail_count + 1;        
     end
+    @(posedge HClk);   // for error cycle 2
+    #1;
+    $display("HResp : %0b , HReady : %0b  ",HResp,HReadyOut);
+    if((HResp==1) && (HReadyOut == 1))begin
+        $display("Pass ! Error Cycle 2 for invalid address ");
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("TEST FAIlED !");
+        fail_count = fail_count + 1;        
+    end   
+
+    if(~S_DUT.addr_in_range)begin
+        $display("PASS ! Detected out of range address , addr_in_range = %0b ",S_DUT.addr_in_range );
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("FAIL ! didn't detect Detected out of range address , addr_in_range = %0b ",S_DUT.addr_in_range );
+        fail_count = fail_count + 1;        
+    end
+    
+
+    #100;
 
     // Test-5 Continuous writes of Halfwords
     $display("\nTest-5 Continuous writes of Halfwords");
@@ -243,43 +263,190 @@ initial begin
     // Continuous writes 
         @(negedge HClk);
         HAddr = 32'd2;
-        HWdata = 32'h12340000;
-        push_ref(8'h34);push_ref(8'h12);
         HWrite = 1;
         @(negedge HClk);
+        HWdata = 32'h12340000;
+        push_ref(8'h34);push_ref(8'h12);
+        #100;
+        @(negedge HClk);
         HAddr = 32'd4;
+        @(negedge HClk);
         HWdata = 32'h00005678;
         push_ref(8'h78);push_ref(8'h56);
+        #100;
         @(negedge HClk);
         HAddr = 32'd6;
+        @(negedge HClk);
         HWdata = 32'h22310000;
         push_ref(8'h31);push_ref(8'h22);
+        #100;
+        #120;
         checkWrite(S_DUT.mem[2]);checkWrite(S_DUT.mem[3]);checkWrite(S_DUT.mem[4]);checkWrite(S_DUT.mem[5]);checkWrite(S_DUT.mem[6]);checkWrite(S_DUT.mem[7]);
         #15;
         $display("HResp : %0b , HReady : %0b ",HResp,HReadyOut);
+
+
 
     // Test-6 Continuous reads of HalfWords
     $display("\nTest-6 Continuous reads of Halfwords");
     // Continuous Memory Access
         @(negedge HClk);
         HAddr  = 32'd2;
+        HTrans = NONSEQ;
         HWrite = 0;
-        #10;
-        checkRead(HRdata, 32'h12340000);
+        #100;
+        checkRead(HRdata, 32'h12340078);
         @(negedge HClk);
         HAddr  = 32'd4;
-        #10;
-        checkRead(HRdata, 32'h00005678);
+        #100;
+        checkRead(HRdata, 32'h12345678);
         @(negedge HClk);
         HAddr = 32'd6;
-        #10;
-        checkRead(HRdata, 32'h22310000);
+        #100;
+        checkRead(HRdata, 32'h22315678);
         #15;
         $display("HResp : %0b , HReady : %0b ",HResp,HReadyOut);
        
 
+    #100;
+
+    // Test-10 HSel deasserted 
+    $display("\nTest-7 HSel deasserted ");
+    @(negedge HClk);
+    HSel = 0;
+    HAddr = 32'h550;
+    HSize = BYTE;
+    HWrite = 1'b0;
+    @(negedge HClk);
+    HWdata = 32'h00ca0000;
+    @(posedge HClk);
+    $display("HResp : %0b , HReady : %0b ",HResp,HReadyOut);
+    if((HResp==0) && (HReadyOut==1))begin
+        $display("PASS ! Idle response when slave isn't selected ");
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("FAIL ! ");
+        fail_count = fail_count + 1;
+    end
+    HSel = 1;
+    #100;
+
+    // Test-7 Address boundary case write
+    $display("\nTest-8 Address boundary case write a word");
+    @(negedge HClk);
+    HAddr = 32'd1020;
+    HTrans = NONSEQ;
+    HSize = WORD;
+    HWrite = 1;
+    @(negedge HClk);
+    HWdata = 32'h00abcdef;
+    push_ref(8'hef);push_ref(8'hcd);push_ref(8'hab);push_ref(8'h00);
+    #100;
+    checkWrite(S_DUT.mem[1020]);checkWrite(S_DUT.mem[1021]);checkWrite(S_DUT.mem[1022]);checkWrite(S_DUT.mem[1023]);
+
+    // Test-8 Address boundary case read
+    $display("\nTest-9 Address boundary case read a word");
+    @(negedge HClk);
+    HWrite = 0;
+    #100;
+    checkRead(HRdata, 32'h00abcdef );
+
+    #100;
+
+    // Test-9 Misaligned Address for a Halfword
+    $display("\nTest-10 Misaligned Address for a Halfword");
+    @(negedge HClk);
+    HAddr = 32'd5;
+    HSize = HALFWORD;
+    HWrite = 1'b1;
+    HWdata = 32'hab12;
+    @(posedge HClk); // wait one cycle for latched address to read
+    @(posedge HClk);   // for error cycle 1
+    #1;
+    $display("HResp : %0b , HReady : %0b  ",HResp,HReadyOut);
+    if((HResp==1) && (HReadyOut == 0))begin
+        $display("Pass ! Error Cycle 1 for Misaligned Address ");
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("TEST FAIlED !");
+        fail_count = fail_count + 1;        
+    end
+    @(posedge HClk);   // for error cycle 2
+    #1;
+    $display("HResp : %0b , HReady : %0b  ",HResp,HReadyOut);
+    if((HResp==1) && (HReadyOut == 1))begin
+        $display("Pass ! Error Cycle 2 for Misaligned address ");
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("TEST FAIlED !");
+        fail_count = fail_count + 1;        
+    end
+
+
+    if(S_DUT.misaligned)begin
+        $display("PASS ! Detected misaligned address , misaligned = %0b ",S_DUT.misaligned );
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("FAIL ! didn't detect misaligned address , misaligned = %0b ",S_DUT.misaligned );
+        fail_count = fail_count + 1;        
+    end
+
+    #100;
+
+    // Test-11 Waitstate test 
+    $display("\nTest-11 WaitState test");
+    fork
+        begin
+                @(negedge HClk);
+                HAddr = 32'd1000;
+                HTrans = NONSEQ;
+                HSize = BYTE;
+                HWrite = 1;
+                @(negedge HClk);
+                HWdata = 32'hde;
+                push_ref(8'hde);
+                #100;
+                checkWrite(S_DUT.mem[1000]);
+        end
+        begin
+            #4;
+            @(negedge HClk);
+            HReady = 0;
+            repeat(3) @(posedge HClk);
+            HReady = 1;
+        end
+    join
+
+    if((S_DUT.HAddrL==32'd1000) && (S_DUT.HTransL==NONSEQ))begin
+        $display("PASS ! Address and control signals are unchanged during wait states");
+        $display("HAddL = %0h , HTrans = %0h ",S_DUT.HAddrL,S_DUT.HTransL);
+        pass_count = pass_count + 1;
+    end
+    else begin
+        $display("FAIL ! ");
+        fail_count = fail_count + 1;
+    end
+
+
+    // -------------------------> RESULTS <-------------------------------
+    $display("Finished test Sequence !! \n The Results are !! \npasscount = %0d , failcount = %0d",pass_count,fail_count);
+
+
+
 $finish;
 
+end
+
+// Runtime error guard
+
+initial begin
+    #1000000000;
+    $display("Simulation time exceecded ! ");
+    $finish;
 end
 
 endmodule
