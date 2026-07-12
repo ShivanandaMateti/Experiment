@@ -153,8 +153,6 @@ endtask
 // Test sequence
 
 
-
-
 initial begin
     
     // initializing the dut
@@ -295,15 +293,15 @@ initial begin
         HTrans = NONSEQ;
         HWrite = 0;
         #100;
-        checkRead(HRdata, 32'h12340078);
+        checkRead(HRdata, 32'h12340000);
         @(negedge HClk);
         HAddr  = 32'd4;
         #100;
-        checkRead(HRdata, 32'h12345678);
+        checkRead(HRdata, 32'h5678);
         @(negedge HClk);
         HAddr = 32'd6;
         #100;
-        checkRead(HRdata, 32'h22315678);
+        checkRead(HRdata, 32'h22310000);
         #15;
         $display("HResp : %0b , HReady : %0b ",HResp,HReadyOut);
        
@@ -419,9 +417,9 @@ initial begin
             repeat(3) @(posedge HClk);
             HReady = 1;
             #5;
-            if((S_DUT.HAddrL==32'd1000) && (S_DUT.HTransL==NONSEQ))begin
+            if((S_DUT.HAddr==32'd1000) && (S_DUT.HTrans==NONSEQ))begin
                 $display("PASS ! Address and control signals are unchanged during wait states");
-                $display("HAddL = %0h , HTrans = %0h ",S_DUT.HAddrL,S_DUT.HTransL);
+                $display("HAdd = %0h , HTrans = %0h ",S_DUT.HAddr,S_DUT.HTrans);
                 pass_count = pass_count + 1;
             end
             else begin

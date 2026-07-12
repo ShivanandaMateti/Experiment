@@ -162,18 +162,18 @@ always@(posedge HClk,negedge HResetn)begin
                               case(HSizeL)
                               BYTE       :begin
                                           case(HAddrL[1:0])
-                                          2'b00          :if(HWriteL) mem[HAddrL] <= HWdata[7:0] ; else HRdata_reg[7:0]  <= mem[HAddrL];
-                                          2'b01          :if(HWriteL) mem[HAddrL] <= HWdata[15:8] ; else HRdata_reg[15:8]  <= mem[HAddrL];
-                                          2'b10          :if(HWriteL) mem[HAddrL] <= HWdata[23:16] ; else HRdata_reg[23:16]  <= mem[HAddrL];
-                                          2'b11          :if(HWriteL) mem[HAddrL] <= HWdata[31:24] ; else HRdata_reg[31:24]  <= mem[HAddrL];
-                                          default        :if(HWriteL) mem[HAddrL] <= HWdata[7:0] ; else HRdata_reg[7:0]  <= mem[HAddrL];
+                                          2'b00          :if(HWriteL) mem[HAddrL] <= HWdata[7:0] ; else HRdata_reg  <= {24'd0,mem[HAddrL]};
+                                          2'b01          :if(HWriteL) mem[HAddrL] <= HWdata[15:8] ; else HRdata_reg  <= {16'd0,mem[HAddrL],8'd0};
+                                          2'b10          :if(HWriteL) mem[HAddrL] <= HWdata[23:16] ; else HRdata_reg  <= {8'd0,mem[HAddrL],16'd0};
+                                          2'b11          :if(HWriteL) mem[HAddrL] <= HWdata[31:24] ; else HRdata_reg  <= {mem[HAddrL],24'd0};
+                                          default        :if(HWriteL) mem[HAddrL] <= HWdata[7:0] ; else HRdata_reg  <= {24'd0,mem[HAddrL]};
                                           endcase
                               end
                               HALFWORD   :begin
                                           case(HAddrL[1])
-                                          1'b0          : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0]; else HRdata_reg[15:0] <= {mem[HAddrL+1],mem[HAddrL]};
-                                          1'b1          : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[31:16]; else HRdata_reg[31:16] <= {mem[HAddrL+1],mem[HAddrL]};
-                                          default       : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0]; else HRdata_reg[15:0] <= {mem[HAddrL+1],mem[HAddrL]};
+                                          1'b0          : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0]; else HRdata_reg <= {16'd0,mem[HAddrL+1],mem[HAddrL]};
+                                          1'b1          : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[31:16]; else HRdata_reg <= {mem[HAddrL+1],mem[HAddrL],16'd0};
+                                          default       : if(HWriteL) {mem[HAddrL+1],mem[HAddrL]} <= HWdata[15:0]; else HRdata_reg <= {16'd0,mem[HAddrL+1],mem[HAddrL]};
                                           endcase    
                               end
                               default       :begin

@@ -15,7 +15,7 @@ module default_slave #(
 
 // local parameters for HTrans
 localparam IDLE         = 2'b00;
-localparam BUSY         = 2'b01;
+//localparam BUSY         = 2'b01;
 localparam NONSEQ       = 2'b10;
 localparam SEQ          = 2'b11;
 

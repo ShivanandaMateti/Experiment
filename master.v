@@ -243,6 +243,35 @@ always@(*)begin
             endcase 
 end
 
+// Calculating HWdata_next to give it to output
+always@(*)begin
+      HWdata_next = HWdata_reg;
+      HRdata_out_next = HRdata;
+      if(HWrite_next)begin
+            case(HSize_reg)
+                  BYTE           : begin
+                                    case(HAddr_reg[1:0])
+                                          2'b00          : HWdata_next = {24'd0,HWdata_req[7:0]};
+                                          2'b01          : HWdata_next = {16'd0,HWdata_req[7:0],8'd0};
+                                          2'b10          : HWdata_next = {8'd0,HWdata_req[7:0],16'd0};
+                                          2'b11          : HWdata_next = {HWdata_req[7:0],24'd0};
+                                          default        : HWdata_next = {24'd0,HWdata_req[7:0]};
+                                    endcase
+                  end 
+                  HALFWORD       : begin
+                                    case(HAddr_reg[1])
+                                          1'b0           : HWdata_next = {16'd0,HWdata_req[15:0]};
+                                          1'b1           : HWdata_next = {HWdata_req[15:0],16'd0};
+                                          default        : HWdata_next = {16'd0,HWdata_req[15:0]};
+                                    endcase
+                  end
+                  default        : HWdata_next = HWdata_req;
+            endcase   
+      end
+      else
+            HRdata_out_next = HRdata;
+end
+
 // output assigning
 
 always@(*)begin
@@ -259,32 +288,7 @@ always@(*)begin
                                               HMastlock_next  = HMastlock_req;
                                               start_Address      = HAddr_req; 
             end
-            transfer                      :  begin
-                                             HTrans_next = SEQ;
-                                             if(HWrite_next)begin
-                                             case(HSize_reg)
-                                             BYTE           : begin
-                                                                  case(HAddr_reg[1:0])
-                                                                  2'b00          : HWdata_next = {24'd0,HWdata_req[7:0]};
-                                                                  2'b01          : HWdata_next = {16'd0,HWdata_req[7:0],8'd0};
-                                                                  2'b10          : HWdata_next = {8'd0,HWdata_req[7:0],16'd0};
-                                                                  2'b11          : HWdata_next = {HWdata_req[7:0],24'd0};
-                                                                  default        : HWdata_next = {24'd0,HWdata_req[7:0]};
-                                                                  endcase
-                                             end 
-                                             HALFWORD       : begin
-                                                                  case(HAddr_reg[1])
-                                                                  1'b0           : HWdata_next = {16'd0,HWdata_req[15:0]};
-                                                                  1'b1           : HWdata_next = {HWdata_req[15:0],16'd0};
-                                                                  default        : HWdata_next = {16'd0,HWdata_req[15:0]};
-                                                                  endcase
-                                             end
-                                             default        : HWdata_next = HWdata_req;
-                                             endcase   
-                                             end
-                                             else
-                                                HRdata_out_next = HRdata;
-            end
+            transfer                      :  HTrans_next = SEQ;
             error_state                   :  HTrans_next = IDLE;
             lock_idle                     :  HTrans_next = IDLE;
             done_s                        :  HTrans_next = IDLE;
@@ -337,13 +341,14 @@ always@(posedge HClk,negedge HResetn)begin
             case(state)
                   start               :     begin 
                                               HAddr_reg  <= start_Address;
+                                              HWdata_reg <= HWdata_next;
                                               beat_count <= 7'd0;
                                               Wrap_Base <= start_Address & (~(beatSize_req*DataSize_req-1));
                                               Wrap_Addr <= (start_Address & (~(beatSize_req*DataSize_req-1))) + (beatSize_req*DataSize_req);                                              
                   end
                   transfer            :     begin
-                                              HWdata_reg <= HWdata_next;
                                               HRdata_out_reg <= HRdata_out_next;
+                                              HWdata_reg <= HWdata_next;
                                               beat_count <= beat_count + 1;
                                               HAddr_reg  <= Next_Address;
                                               if(beat_count == (beatSize-1))begin
